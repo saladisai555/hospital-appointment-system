@@ -23,11 +23,7 @@ public class RegisterRequest {
     private String password;
 
     private String phone;
-
-    // Only patient self-registration goes through this endpoint (per spec:
-    // "PATIENT registration creates a patient account"). Doctors/admins are
-    // created by ADMIN via /api/admin/doctors, not here.
-    private String dateOfBirth; // ISO string, parsed to LocalDate in the mapper/service
+    private String dateOfBirth;
     private String gender;
     private String address;
 }

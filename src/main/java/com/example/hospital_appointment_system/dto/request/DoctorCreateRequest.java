@@ -5,7 +5,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-// Used by ADMIN to create a doctor - creates both the User (role=DOCTOR) and Doctor profile.
 @Getter
 @Setter
 public class DoctorCreateRequest {

@@ -8,7 +8,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-// Partial update - fields left null are left unchanged by the service.
 @Getter
 @Setter
 public class DoctorUpdateRequest {

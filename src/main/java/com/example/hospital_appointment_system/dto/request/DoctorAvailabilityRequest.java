@@ -23,8 +23,4 @@ public class DoctorAvailabilityRequest {
     @NotNull(message = "slotDurationMinutes is required")
     private Integer slotDurationMinutes;
 
-    // Cross-field check (start < end) is enforced in the service layer in Phase 6/8,
-    // not here - Bean Validation alone can't easily compare two fields on this DTO
-    // without a custom class-level annotation, and the service needs to do a DB-aware
-    // overlap check anyway, so the ordering check lives there too for one source of truth.
 }

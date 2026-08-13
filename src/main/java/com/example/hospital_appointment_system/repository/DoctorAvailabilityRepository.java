@@ -14,8 +14,6 @@ public interface DoctorAvailabilityRepository extends JpaRepository<DoctorAvaila
 
     List<DoctorAvailability> findByDoctorIdAndDayOfWeekAndActiveTrue(Integer doctorId, DayOfWeek dayOfWeek);
 
-    // Used in Phase 8 to reject an availability rule that overlaps an existing one
-    // for the same doctor/day (e.g. doctor tries to add 09:00-13:00 when 10:00-11:00 already exists).
     @Query("""
             SELECT COUNT(a) > 0 FROM DoctorAvailability a
             WHERE a.doctor.id = :doctorId

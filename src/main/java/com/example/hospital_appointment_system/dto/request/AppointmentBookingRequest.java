@@ -25,6 +25,4 @@ public class AppointmentBookingRequest {
     @Size(max = 500)
     private String reason;
 
-    // endTime is NOT accepted from the client - the service derives it from the
-    // doctor's slotDurationMinutes, so a patient can't submit a made-up duration.
 }

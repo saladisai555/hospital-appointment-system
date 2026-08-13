@@ -15,8 +15,6 @@ public interface DoctorRepository extends JpaRepository<Doctor, Integer> {
 
     boolean existsByLicenseNumber(String licenseNumber);
 
-    // Backs GET /api/doctors?departmentId=&specialization=&page=&size=
-    // Either filter can be null - COALESCE/ISNULL-style optional matching via JPQL.
     @Query("""
             SELECT d FROM Doctor d
             WHERE d.active = true
