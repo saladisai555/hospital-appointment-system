@@ -12,4 +12,5 @@ public interface DoctorService {
     DoctorResponse create(DoctorCreateRequest request);
     DoctorResponse update(Integer id, DoctorUpdateRequest request);
     void delete(Integer id);
+    Integer getDoctorIdByUserId(Integer userId);
 }

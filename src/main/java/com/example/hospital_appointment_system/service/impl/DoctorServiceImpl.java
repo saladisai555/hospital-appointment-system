@@ -39,6 +39,14 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
+    public Integer getDoctorIdByUserId(Integer userId) {
+        return doctorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor profile not found"))
+                .getId();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DoctorResponse getById(Integer id) {
         return DoctorMapper.toResponse(findEntity(id));
     }

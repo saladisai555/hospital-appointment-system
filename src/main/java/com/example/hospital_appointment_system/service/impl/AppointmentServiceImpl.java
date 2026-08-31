@@ -28,6 +28,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private static final List<AppointmentStatus> INACTIVE_STATUSES =
             List.of(AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED);
 
+
     @Override
     @Transactional
     public AppointmentResponse book(Integer patientUserId, AppointmentBookingRequest request) {
@@ -62,9 +63,26 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalTime endTime = request.getStartTime().plusMinutes(matchingRule.getSlotDurationMinutes());
 
+        // ==== CONCURRENCY-SAFE SECTION ====
+        // Acquire a pessimistic write lock on ALL of this doctor's appointments for this
+        // date BEFORE checking for overlap. Any other transaction trying to book the same
+        // doctor/date will block here until this transaction commits or rolls back - so
+        // the "check overlap, then insert" sequence below becomes effectively atomic.
+        List<Appointment> lockedExistingAppointments;
+        try {
+            lockedExistingAppointments = appointmentRepository
+                    .lockAppointmentsForDoctorAndDate(doctor.getId(), request.getAppointmentDate());
+        } catch (jakarta.persistence.PessimisticLockException | jakarta.persistence.LockTimeoutException e) {
+            // Another transaction is holding the lock and we timed out waiting for it.
+            throw new ConflictException("This slot is currently being booked by someone else. Please try again.");
+        }
+
+        boolean overlapExists = lockedExistingAppointments.stream()
+                .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED && a.getStatus() != AppointmentStatus.REJECTED)
+                .anyMatch(a -> a.getStartTime().isBefore(endTime) && a.getEndTime().isAfter(request.getStartTime()));
+
         // Rule 5: same doctor cannot have two active appointments in the same slot
-        if (appointmentRepository.existsOverlappingAppointment(
-                doctor.getId(), request.getAppointmentDate(), request.getStartTime(), endTime)) {
+        if (overlapExists) {
             throw new ConflictException("This slot is already booked. Please choose another time.");
         }
 
@@ -87,6 +105,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         // Email confirmation wired up in Phase 15 - not part of this transaction.
         return AppointmentMapper.toResponse(saved);
     }
+
 
     @Override
     @Transactional(readOnly = true)
