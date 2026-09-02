@@ -4,6 +4,7 @@ import com.example.hospital_appointment_system.dto.response.DoctorAvailabilityRe
 import com.example.hospital_appointment_system.dto.response.DoctorResponse;
 import com.example.hospital_appointment_system.service.AvailabilityService;
 import com.example.hospital_appointment_system.service.DoctorService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import java.util.List;
 @RequestMapping("/api/doctors")
 @RequiredArgsConstructor
 @Tag(name = "Doctors")
+@SecurityRequirement(name = "bearerAuth")
 public class DoctorController {
 
     private final DoctorService doctorService;
