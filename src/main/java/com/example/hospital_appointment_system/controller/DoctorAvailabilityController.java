@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/doctor/availability")
 @RequiredArgsConstructor
@@ -35,7 +37,11 @@ public class DoctorAvailabilityController {
         Integer doctorId = doctorService.getDoctorIdByUserId(SecurityUtils.currentUserId());
         return availabilityService.update(doctorId, id, request);
     }
-
+    @GetMapping
+    public List<DoctorAvailabilityResponse> getMyAvailability() {
+        Integer doctorId = doctorService.getDoctorIdByUserId(SecurityUtils.currentUserId());
+        return availabilityService.getByDoctor(doctorId);
+    }
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         Integer doctorId = doctorService.getDoctorIdByUserId(SecurityUtils.currentUserId());
