@@ -15,13 +15,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import com.example.hospital_appointment_system.service.booking.AppointmentBookingValidator;
 import com.example.hospital_appointment_system.service.booking.AppointmentConflictService;
 import com.example.hospital_appointment_system.service.booking.AppointmentSlotService;
-import com.example.hospital_appointment_system.exception.BadRequestException;
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
@@ -218,16 +216,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                 request.getStatus()
         );
 
+
         if (request.getNotes() != null) {
             appointment.setNotes(
                     request.getNotes()
             );
         }
-        if (request.getNotes() != null) {
-            appointment.setNotes(
-                    request.getNotes()
-            );
-        }
+        auditLogService.log(
+                doctor.getUser(),
+                "UPDATE_APPOINTMENT_STATUS",
+                "APPOINTMENT",
+                appointment.getId(),
+                "Appointment status changed to " + request.getStatus()
+        );
         return AppointmentMapper.toResponse(appointment);
     }
 
