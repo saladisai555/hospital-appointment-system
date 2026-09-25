@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-
+import com.example.hospital_appointment_system.service.booking.AppointmentBookingValidator;
+import com.example.hospital_appointment_system.service.booking.AppointmentConflictService;
+import com.example.hospital_appointment_system.service.booking.AppointmentSlotService;
 @Service
 @RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
@@ -23,86 +25,76 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
-    private final DoctorAvailabilityRepository availabilityRepository;
-
-    private static final List<AppointmentStatus> INACTIVE_STATUSES =
-            List.of(AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED);
+    private final AppointmentBookingValidator bookingValidator;
+    private final AppointmentSlotService slotService;
+    private final AppointmentConflictService conflictService;
 
 
     @Override
     @Transactional
-    public AppointmentResponse book(Integer patientUserId, AppointmentBookingRequest request) {
-        Patient patient = patientRepository.findByUserId(patientUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
-        if (!patient.getUser().isActive()) {
-            throw new ForbiddenActionException("Your account is inactive");
-        }
+    public AppointmentResponse book(
+            Integer patientUserId,
+            AppointmentBookingRequest request) {
 
-        Doctor doctor = doctorRepository.findById(request.getDoctorId())
-                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
-        if (!doctor.isActive()) {
-            throw new BadRequestException("This doctor is not currently accepting appointments");
-        }
+        Patient patient = patientRepository
+                .findByUserId(patientUserId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Patient profile not found"
+                        )
+                );
 
-        // Rule 3: valid future date/time
-        LocalDateTime requestedStart = LocalDateTime.of(request.getAppointmentDate(), request.getStartTime());
-        if (requestedStart.isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Appointment date/time must be in the future");
-        }
+        bookingValidator.validatePatient(patient);
 
-        // Rule 4: requested time must fall inside doctor availability
-        List<DoctorAvailability> dayRules = availabilityRepository
-                .findByDoctorIdAndDayOfWeekAndActiveTrue(doctor.getId(), request.getAppointmentDate().getDayOfWeek());
+        Doctor doctor = doctorRepository
+                .findById(request.getDoctorId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Doctor not found: "
+                                        + request.getDoctorId()
+                        )
+                );
 
-        DoctorAvailability matchingRule = dayRules.stream()
-                .filter(rule -> !request.getStartTime().isBefore(rule.getStartTime())
-                        && request.getStartTime().plusMinutes(rule.getSlotDurationMinutes()).compareTo(rule.getEndTime()) <= 0)
-                .findFirst()
-                .orElseThrow(() -> new BadRequestException(
-                        "Doctor is not available at the requested time on this day"));
+        bookingValidator.validateDoctor(doctor);
 
-        LocalTime endTime = request.getStartTime().plusMinutes(matchingRule.getSlotDurationMinutes());
+        bookingValidator.validateFutureDateTime(request);
 
-        // ==== CONCURRENCY-SAFE SECTION ====
-        // Acquire a pessimistic write lock on ALL of this doctor's appointments for this
-        // date BEFORE checking for overlap. Any other transaction trying to book the same
-        // doctor/date will block here until this transaction commits or rolls back - so
-        // the "check overlap, then insert" sequence below becomes effectively atomic.
-        List<Appointment> lockedExistingAppointments;
-        try {
-            lockedExistingAppointments = appointmentRepository
-                    .lockAppointmentsForDoctorAndDate(doctor.getId(), request.getAppointmentDate());
-        } catch (jakarta.persistence.PessimisticLockException | jakarta.persistence.LockTimeoutException e) {
-            // Another transaction is holding the lock and we timed out waiting for it.
-            throw new ConflictException("This slot is currently being booked by someone else. Please try again.");
-        }
+        LocalTime endTime =
+                slotService.calculateEndTime(
+                        doctor,
+                        request
+                );
 
-        boolean overlapExists = lockedExistingAppointments.stream()
-                .filter(a -> a.getStatus() != AppointmentStatus.CANCELLED && a.getStatus() != AppointmentStatus.REJECTED)
-                .anyMatch(a -> a.getStartTime().isBefore(endTime) && a.getEndTime().isAfter(request.getStartTime()));
+        bookingValidator.validateSlot(
+                request.getStartTime(),
+                endTime
+        );
 
-        // Rule 5: same doctor cannot have two active appointments in the same slot
-        if (overlapExists) {
-            throw new ConflictException("This slot is already booked. Please choose another time.");
-        }
-
-        // Rule 6: patient should not duplicate-book the same doctor/date/time
-        if (appointmentRepository.existsByPatientIdAndDoctorIdAndAppointmentDateAndStartTimeAndStatusNotIn(
-                patient.getId(), doctor.getId(), request.getAppointmentDate(), request.getStartTime(), INACTIVE_STATUSES)) {
-            throw new ConflictException("You already have a booking with this doctor at this time");
-        }
+        conflictService.validateNoConflict(
+                patient.getId(),
+                doctor.getId(),
+                request.getAppointmentDate(),
+                request.getStartTime(),
+                endTime
+        );
 
         Appointment appointment = new Appointment();
+
         appointment.setPatient(patient);
         appointment.setDoctor(doctor);
-        appointment.setAppointmentDate(request.getAppointmentDate());
-        appointment.setStartTime(request.getStartTime());
+        appointment.setAppointmentDate(
+                request.getAppointmentDate()
+        );
+        appointment.setStartTime(
+                request.getStartTime()
+        );
         appointment.setEndTime(endTime);
         appointment.setStatus(AppointmentStatus.BOOKED);
         appointment.setReason(request.getReason());
 
-        Appointment saved = appointmentRepository.save(appointment);
-        // Email confirmation wired up in Phase 15 - not part of this transaction.
+        Appointment saved =
+                appointmentRepository.save(appointment);
+
         return AppointmentMapper.toResponse(saved);
     }
 

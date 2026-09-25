@@ -16,30 +16,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-
+import com.example.hospital_appointment_system.entity.Role;
+import com.example.hospital_appointment_system.service.UserAccountService;
 @Service
 @RequiredArgsConstructor
 public class PatientServiceImpl implements PatientService {
-
-    private final UserRepository userRepository;
     private final PatientRepository patientRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserAccountService userAccountService;
 
     @Override
     @Transactional
     public PatientResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ConflictException("An account with this email already exists");
-        }
-
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(Role.PATIENT);
-        user.setPhone(request.getPhone());
-        user.setActive(true);
-        userRepository.save(user);
+        User user = userAccountService.createAccount(
+                request.getName(),
+                request.getEmail(),
+                request.getPassword(),
+                Role.PATIENT,
+                request.getPhone()
+        );
 
         Patient patient = new Patient();
         patient.setUser(user);

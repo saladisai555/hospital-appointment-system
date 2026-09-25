@@ -1,6 +1,8 @@
 package com.example.hospital_appointment_system.config;
 
 import com.example.hospital_appointment_system.security.JwtAuthenticationFilter;
+import com.example.hospital_appointment_system.security.handler.RestAccessDeniedHandler;
+import com.example.hospital_appointment_system.security.handler.RestAuthenticationEntryPoint;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,24 +27,30 @@ import com.example.hospital_appointment_system.dto.response.ErrorResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthenticationEntryPoint authenticationEntryPoint;
+
+    private final RestAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
-                                writeError(response, HttpStatus.UNAUTHORIZED, "Authentication required", request.getRequestURI()))
-                        .accessDeniedHandler((request, response, accessDeniedException) ->
-                                writeError(response, HttpStatus.FORBIDDEN, "You do not have permission to access this resource", request.getRequestURI()))
+                .exceptionHandling(exception -> exception
+
+                        .authenticationEntryPoint(
+                                authenticationEntryPoint
+                        )
+
+                        .accessDeniedHandler(
+                                accessDeniedHandler
+                        )
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Public
@@ -83,18 +92,7 @@ public class SecurityConfig {
         new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
                 .writeValue(response.getWriter(), error);
     }
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173")); // React dev server, Phase 11+
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {

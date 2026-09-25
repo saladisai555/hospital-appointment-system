@@ -11,7 +11,7 @@ import java.util.Date;
 import java.util.function.Function;
 
 @Component
-public class JwtUtil {
+public class JwtTokenService {
 
     @Value("${app.jwt.secret}")
     private String secret;

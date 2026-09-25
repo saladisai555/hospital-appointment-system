@@ -20,15 +20,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.example.hospital_appointment_system.entity.Role;
+import com.example.hospital_appointment_system.entity.User;
+import com.example.hospital_appointment_system.service.UserAccountService;
 @Service
 @RequiredArgsConstructor
 public class DoctorServiceImpl implements DoctorService {
-
     private final DoctorRepository doctorRepository;
-    private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserAccountService userAccountService;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,23 +54,19 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     @Transactional
     public DoctorResponse create(DoctorCreateRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ConflictException("An account with this email already exists");
-        }
+
         if (doctorRepository.existsByLicenseNumber(request.getLicenseNumber())) {
             throw new ConflictException("A doctor with this license number already exists");
         }
         Department department = departmentRepository.findById(request.getDepartmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Department not found: " + request.getDepartmentId()));
-
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(Role.DOCTOR);
-        user.setPhone(request.getPhone());
-        user.setActive(true);
-        userRepository.save(user);
+        User user = userAccountService.createAccount(
+                request.getName(),
+                request.getEmail(),
+                request.getPassword(),
+                Role.DOCTOR,
+                request.getPhone()
+        );
 
         Doctor doctor = new Doctor();
         doctor.setUser(user);

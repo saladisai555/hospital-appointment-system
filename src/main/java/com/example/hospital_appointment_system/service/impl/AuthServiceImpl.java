@@ -5,7 +5,7 @@ import com.example.hospital_appointment_system.dto.response.AuthResponse;
 import com.example.hospital_appointment_system.entity.User;
 import com.example.hospital_appointment_system.exception.BadRequestException;
 import com.example.hospital_appointment_system.repository.UserRepository;
-import com.example.hospital_appointment_system.security.JwtUtil;
+import com.example.hospital_appointment_system.security.JwtTokenService;
 import com.example.hospital_appointment_system.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,7 +19,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
+    private final JwtTokenService jwtTokenService;
 
     @Override
     public AuthResponse login(LoginRequest request) {
@@ -37,7 +37,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("This account has been deactivated");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
+        String token = jwtTokenService.generateToken(user.getEmail(), user.getRole().name(), user.getId());
         return new AuthResponse(token, user.getId(), user.getName(), user.getEmail(), user.getRole());
     }
 }
