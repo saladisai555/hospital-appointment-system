@@ -13,24 +13,22 @@ import jakarta.persistence.QueryHint;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
 
-public interface AppointmentRepository
-        extends JpaRepository<Appointment, Integer> {
-
-    List<Appointment>
-    findByPatientIdOrderByAppointmentDateDescStartTimeDesc(
+    List<Appointment> findByPatientIdOrderByAppointmentDateDescStartTimeDesc(
             Integer patientId
     );
 
-    List<Appointment>
-    findByDoctorIdOrderByAppointmentDateDescStartTimeDesc(
+    List<Appointment> findByDoctorIdOrderByAppointmentDateDescStartTimeDesc(
             Integer doctorId
     );
 
-    List<Appointment>
-    findByDoctorIdAndAppointmentDate(
+    boolean existsByDoctorIdAndAppointmentDateAndStatusNotInAndStartTimeLessThanAndEndTimeGreaterThan(
             Integer doctorId,
-            LocalDate appointmentDate
+            LocalDate appointmentDate,
+            List<AppointmentStatus> excludedStatuses,
+            LocalTime endTime,
+            LocalTime startTime
     );
 
     boolean existsByPatientIdAndDoctorIdAndAppointmentDateAndStartTimeAndStatusNotIn(

@@ -1,6 +1,5 @@
 package com.example.hospital_appointment_system.service.booking;
 
-import com.example.hospital_appointment_system.entity.Appointment;
 import com.example.hospital_appointment_system.entity.AppointmentStatus;
 import com.example.hospital_appointment_system.exception.ConflictException;
 import com.example.hospital_appointment_system.repository.AppointmentRepository;
@@ -32,28 +31,18 @@ public class AppointmentConflictService {
             LocalTime startTime,
             LocalTime endTime) {
 
+        // Keep pessimistic locking for concurrent bookings
         lockDoctor(doctorId);
 
-        List<Appointment> existingAppointments =
-                appointmentRepository
-                        .findByDoctorIdAndAppointmentDate(
-                                doctorId,
-                                appointmentDate
-                        );
-
+        // Check overlapping appointments directly in the database
         boolean overlapExists =
-                existingAppointments.stream()
-                        .filter(appointment ->
-                                !INACTIVE_STATUSES.contains(
-                                        appointment.getStatus()
-                                )
-                        )
-                        .anyMatch(appointment ->
-                                appointment.getStartTime()
-                                        .isBefore(endTime)
-                                        &&
-                                        appointment.getEndTime()
-                                                .isAfter(startTime)
+                appointmentRepository
+                        .existsByDoctorIdAndAppointmentDateAndStatusNotInAndStartTimeLessThanAndEndTimeGreaterThan(
+                                doctorId,
+                                appointmentDate,
+                                INACTIVE_STATUSES,
+                                endTime,
+                                startTime
                         );
 
         if (overlapExists) {
@@ -62,6 +51,7 @@ public class AppointmentConflictService {
             );
         }
 
+        // Check duplicate booking by the same patient
         boolean duplicateBooking =
                 appointmentRepository
                         .existsByPatientIdAndDoctorIdAndAppointmentDateAndStartTimeAndStatusNotIn(

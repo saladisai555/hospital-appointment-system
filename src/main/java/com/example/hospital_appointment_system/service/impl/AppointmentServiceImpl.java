@@ -1,5 +1,8 @@
 package com.example.hospital_appointment_system.service.impl;
 
+import com.example.hospital_appointment_system.service.AuditLogService;
+import com.example.hospital_appointment_system.service.NotificationService;
+
 import com.example.hospital_appointment_system.dto.request.AppointmentBookingRequest;
 import com.example.hospital_appointment_system.dto.request.AppointmentStatusUpdateRequest;
 import com.example.hospital_appointment_system.dto.response.AppointmentResponse;
@@ -29,7 +32,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentBookingValidator bookingValidator;
     private final AppointmentSlotService slotService;
     private final AppointmentConflictService conflictService;
-
+    private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -91,6 +95,20 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment saved =
                 appointmentRepository.save(appointment);
 
+        notificationService.createNotification(
+                saved,
+                NotificationType.BOOKING_CONFIRMATION
+        );
+
+        auditLogService.log(
+                patient.getUser(),
+                "BOOK_APPOINTMENT",
+                "APPOINTMENT",
+                saved.getId(),
+                "Appointment booked with doctor ID " + doctor.getId()
+        );
+
+
         return AppointmentMapper.toResponse(saved);
     }
 
@@ -149,6 +167,18 @@ public class AppointmentServiceImpl implements AppointmentService {
                 AppointmentStatus.CANCELLED
         );
 
+        notificationService.createNotification(
+                appointment,
+                NotificationType.CANCELLATION
+        );
+
+        auditLogService.log(
+                patient.getUser(),
+                "CANCEL_APPOINTMENT",
+                "APPOINTMENT",
+                appointment.getId(),
+                "Appointment cancelled by patient"
+        );
         return AppointmentMapper.toResponse(appointment);
     }
 
@@ -193,7 +223,11 @@ public class AppointmentServiceImpl implements AppointmentService {
                     request.getNotes()
             );
         }
-
+        if (request.getNotes() != null) {
+            appointment.setNotes(
+                    request.getNotes()
+            );
+        }
         return AppointmentMapper.toResponse(appointment);
     }
 
