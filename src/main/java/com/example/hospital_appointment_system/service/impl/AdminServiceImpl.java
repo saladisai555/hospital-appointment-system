@@ -17,19 +17,42 @@ public class AdminServiceImpl implements AdminService {
     private final DoctorRepository doctorRepository;
     private final DepartmentRepository departmentRepository;
     private final AppointmentRepository appointmentRepository;
-
     @Override
     @Transactional(readOnly = true)
     public AdminDashboardResponse getDashboard() {
-        var all = appointmentRepository.findAll();
+
+        long totalAppointments =
+                appointmentRepository.count();
+
+        long bookedAppointments =
+                appointmentRepository.countByStatus(
+                        AppointmentStatus.BOOKED
+                );
+
+        long completedAppointments =
+                appointmentRepository.countByStatus(
+                        AppointmentStatus.COMPLETED
+                );
+
+        long cancelledAppointments =
+                appointmentRepository.countByStatus(
+                        AppointmentStatus.CANCELLED
+                );
+
         return AdminDashboardResponse.builder()
-                .totalPatients(userRepository.countByRole(Role.PATIENT))
-                .totalDoctors(doctorRepository.count())
-                .totalDepartments(departmentRepository.count())
-                .totalAppointments(all.size())
-                .bookedAppointments(all.stream().filter(a -> a.getStatus() == AppointmentStatus.BOOKED).count())
-                .completedAppointments(all.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count())
-                .cancelledAppointments(all.stream().filter(a -> a.getStatus() == AppointmentStatus.CANCELLED).count())
+                .totalPatients(
+                        userRepository.countByRole(Role.PATIENT)
+                )
+                .totalDoctors(
+                        doctorRepository.count()
+                )
+                .totalDepartments(
+                        departmentRepository.count()
+                )
+                .totalAppointments(totalAppointments)
+                .bookedAppointments(bookedAppointments)
+                .completedAppointments(completedAppointments)
+                .cancelledAppointments(cancelledAppointments)
                 .build();
     }
 }

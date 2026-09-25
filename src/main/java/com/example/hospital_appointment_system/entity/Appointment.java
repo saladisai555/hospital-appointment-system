@@ -1,6 +1,8 @@
 package com.example.hospital_appointment_system.entity;
 
+import com.example.hospital_appointment_system.exception.BadRequestException;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,6 +41,7 @@ public class Appointment {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Setter(AccessLevel.NONE)
     private AppointmentStatus status = AppointmentStatus.BOOKED;
 
     @Column(length = 500)
@@ -55,16 +58,38 @@ public class Appointment {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    public void changeStatus(AppointmentStatus newStatus) {
+
+        if (newStatus == null) {
+            throw new BadRequestException(
+                    "Appointment status cannot be null"
+            );
+        }
+
+        if (status.isFinal()) {
+            throw new BadRequestException(
+                    "Appointment can no longer be modified from status "
+                            + status
+            );
+        }
+
+        this.status = newStatus;
+    }
+
     @Override
     public String toString() {
-        return "Appointment{id=" + id + ", date=" + appointmentDate + ", " + startTime + "-" + endTime
+        return "Appointment{id=" + id
+                + ", date=" + appointmentDate
+                + ", " + startTime + "-" + endTime
                 + ", status=" + status + "}";
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
+
         if (!(o instanceof Appointment that)) return false;
+
         return id != null && id.equals(that.id);
     }
 

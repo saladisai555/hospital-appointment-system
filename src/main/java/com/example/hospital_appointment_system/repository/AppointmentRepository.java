@@ -9,19 +9,37 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.QueryHints;
 import jakarta.persistence.QueryHint;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-public interface AppointmentRepository extends JpaRepository<Appointment, Integer> {
+public interface AppointmentRepository
+        extends JpaRepository<Appointment, Integer> {
 
-    List<Appointment> findByPatientIdOrderByAppointmentDateDescStartTimeDesc(Integer patientId);
+    List<Appointment>
+    findByPatientIdOrderByAppointmentDateDescStartTimeDesc(
+            Integer patientId
+    );
 
-    List<Appointment> findByDoctorIdOrderByAppointmentDateDescStartTimeDesc(Integer doctorId);
+    List<Appointment>
+    findByDoctorIdOrderByAppointmentDateDescStartTimeDesc(
+            Integer doctorId
+    );
 
-    List<Appointment> findByDoctorIdAndAppointmentDate(Integer doctorId, LocalDate appointmentDate);
+    List<Appointment>
+    findByDoctorIdAndAppointmentDate(
+            Integer doctorId,
+            LocalDate appointmentDate
+    );
 
     boolean existsByPatientIdAndDoctorIdAndAppointmentDateAndStartTimeAndStatusNotIn(
-            Integer patientId, Integer doctorId, LocalDate appointmentDate, LocalTime startTime,
-            List<AppointmentStatus> excludedStatuses);
+            Integer patientId,
+            Integer doctorId,
+            LocalDate appointmentDate,
+            LocalTime startTime,
+            List<AppointmentStatus> excludedStatuses
+    );
+
+    long countByStatus(AppointmentStatus status);
 }
