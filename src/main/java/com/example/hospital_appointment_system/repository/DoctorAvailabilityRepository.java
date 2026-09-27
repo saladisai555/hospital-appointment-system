@@ -6,26 +6,36 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.List;
 
-public interface DoctorAvailabilityRepository extends JpaRepository<DoctorAvailability, Integer> {
+public interface DoctorAvailabilityRepository
+        extends JpaRepository<DoctorAvailability, Integer> {
 
-    List<DoctorAvailability> findByDoctorIdAndActiveTrue(Integer doctorId);
+    List<DoctorAvailability> findByDoctorIdAndActiveTrue(
+            Integer doctorId
+    );
 
-    List<DoctorAvailability> findByDoctorIdAndDayOfWeekAndActiveTrue(Integer doctorId, DayOfWeek dayOfWeek);
+    List<DoctorAvailability> findByDoctorIdAndDayOfWeekAndActiveTrue(
+            Integer doctorId,
+            DayOfWeek dayOfWeek
+    );
 
-    @Query("""
-            SELECT COUNT(a) > 0 FROM DoctorAvailability a
-            WHERE a.doctor.id = :doctorId
-              AND a.dayOfWeek = :dayOfWeek
-              AND a.active = true
-              AND a.id <> COALESCE(:excludeId, -1)
-              AND a.startTime < :endTime
-              AND a.endTime > :startTime
-            """)
-    boolean existsOverlapping(@Param("doctorId") Integer doctorId,
-                              @Param("dayOfWeek") DayOfWeek dayOfWeek,
-                              @Param("startTime") java.time.LocalTime startTime,
-                              @Param("endTime") java.time.LocalTime endTime,
-                              @Param("excludeId") Integer excludeId);
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM doctor_availability
+        WHERE doctor_id = :doctorId
+          AND day_of_week = :dayOfWeek
+          AND active = 1
+          AND id <> COALESCE(:excludeId, -1)
+          AND start_time < CAST(:endTime AS time)
+          AND end_time > CAST(:startTime AS time)
+        """, nativeQuery = true)
+    int existsOverlapping(
+            @Param("doctorId") Integer doctorId,
+            @Param("dayOfWeek") String dayOfWeek,
+            @Param("startTime") LocalTime startTime,
+            @Param("endTime") LocalTime endTime,
+            @Param("excludeId") Integer excludeId
+    );
 }

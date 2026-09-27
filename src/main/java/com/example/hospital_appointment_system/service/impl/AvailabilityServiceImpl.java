@@ -29,87 +29,186 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     @Override
     @Transactional(readOnly = true)
     public List<DoctorAvailabilityResponse> getByDoctor(Integer doctorId) {
-        return availabilityRepository.findByDoctorIdAndActiveTrue(doctorId).stream()
+
+        return availabilityRepository
+                .findByDoctorIdAndActiveTrue(doctorId)
+                .stream()
                 .map(AvailabilityMapper::toResponse)
                 .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DoctorAvailabilityResponse> getByDoctorAndDate(Integer doctorId, LocalDate date) {
-        return availabilityRepository.findByDoctorIdAndDayOfWeekAndActiveTrue(doctorId, date.getDayOfWeek()).stream()
+    public List<DoctorAvailabilityResponse> getByDoctorAndDate(
+            Integer doctorId,
+            LocalDate date) {
+
+        return availabilityRepository
+                .findByDoctorIdAndDayOfWeekAndActiveTrue(
+                        doctorId,
+                        date.getDayOfWeek()
+                )
+                .stream()
                 .map(AvailabilityMapper::toResponse)
                 .toList();
     }
 
     @Override
     @Transactional
-    public DoctorAvailabilityResponse create(Integer doctorId, DoctorAvailabilityRequest request) {
+    public DoctorAvailabilityResponse create(
+            Integer doctorId,
+            DoctorAvailabilityRequest request) {
+
         Doctor doctor = findDoctor(doctorId);
+
         validateTimeRange(request);
 
-        if (availabilityRepository.existsOverlapping(doctorId, request.getDayOfWeek(),
-                request.getStartTime(), request.getEndTime(), null)) {
-            throw new ConflictException("This overlaps an existing availability rule for that day");
+        int overlapping = availabilityRepository.existsOverlapping(
+                doctorId,
+                request.getDayOfWeek().name(),
+                request.getStartTime(),
+                request.getEndTime(),
+                null
+        );
+
+        if (overlapping > 0) {
+            throw new ConflictException(
+                    "This overlaps an existing availability rule for that day"
+            );
         }
 
-        DoctorAvailability availability = new DoctorAvailability();
+        DoctorAvailability availability =
+                new DoctorAvailability();
+
         availability.setDoctor(doctor);
         availability.setDayOfWeek(request.getDayOfWeek());
         availability.setStartTime(request.getStartTime());
         availability.setEndTime(request.getEndTime());
-        availability.setSlotDurationMinutes(request.getSlotDurationMinutes());
+        availability.setSlotDurationMinutes(
+                request.getSlotDurationMinutes()
+        );
         availability.setActive(true);
 
-        return AvailabilityMapper.toResponse(availabilityRepository.save(availability));
+        return AvailabilityMapper.toResponse(
+                availabilityRepository.save(availability)
+        );
     }
 
     @Override
     @Transactional
-    public DoctorAvailabilityResponse update(Integer doctorId, Integer availabilityId, DoctorAvailabilityRequest request) {
-        DoctorAvailability availability = findOwnedAvailability(doctorId, availabilityId);
+    public DoctorAvailabilityResponse update(
+            Integer doctorId,
+            Integer availabilityId,
+            DoctorAvailabilityRequest request) {
+
+        DoctorAvailability availability =
+                findOwnedAvailability(
+                        doctorId,
+                        availabilityId
+                );
+
         validateTimeRange(request);
 
-        if (availabilityRepository.existsOverlapping(doctorId, request.getDayOfWeek(),
-                request.getStartTime(), request.getEndTime(), availabilityId)) {
-            throw new ConflictException("This overlaps an existing availability rule for that day");
+        int overlapping = availabilityRepository.existsOverlapping(
+                doctorId,
+                request.getDayOfWeek().name(),
+                request.getStartTime(),
+                request.getEndTime(),
+                availabilityId
+        );
+
+        if (overlapping > 0) {
+            throw new ConflictException(
+                    "This overlaps an existing availability rule for that day"
+            );
         }
 
-        availability.setDayOfWeek(request.getDayOfWeek());
-        availability.setStartTime(request.getStartTime());
-        availability.setEndTime(request.getEndTime());
-        availability.setSlotDurationMinutes(request.getSlotDurationMinutes());
+        availability.setDayOfWeek(
+                request.getDayOfWeek()
+        );
 
-        return AvailabilityMapper.toResponse(availability);
+        availability.setStartTime(
+                request.getStartTime()
+        );
+
+        availability.setEndTime(
+                request.getEndTime()
+        );
+
+        availability.setSlotDurationMinutes(
+                request.getSlotDurationMinutes()
+        );
+
+        return AvailabilityMapper.toResponse(
+                availability
+        );
     }
 
     @Override
     @Transactional
-    public void delete(Integer doctorId, Integer availabilityId) {
-        findOwnedAvailability(doctorId, availabilityId).setActive(false);
+    public void delete(
+            Integer doctorId,
+            Integer availabilityId) {
+
+        findOwnedAvailability(
+                doctorId,
+                availabilityId
+        ).setActive(false);
     }
 
-    private void validateTimeRange(DoctorAvailabilityRequest request) {
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-            throw new BadRequestException("startTime must be before endTime");
+    private void validateTimeRange(
+            DoctorAvailabilityRequest request) {
+
+        if (!request.getStartTime()
+                .isBefore(request.getEndTime())) {
+
+            throw new BadRequestException(
+                    "startTime must be before endTime"
+            );
         }
+
         if (request.getSlotDurationMinutes() <= 0) {
-            throw new BadRequestException("slotDurationMinutes must be positive");
+
+            throw new BadRequestException(
+                    "slotDurationMinutes must be positive"
+            );
         }
     }
 
     private Doctor findDoctor(Integer doctorId) {
-        return doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+
+        return doctorRepository
+                .findById(doctorId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Doctor not found: " + doctorId
+                        )
+                );
     }
 
-private DoctorAvailability findOwnedAvailability(Integer doctorId, Integer availabilityId) {
-    DoctorAvailability availability = availabilityRepository.findById(availabilityId)
-            .orElseThrow(() -> new ResourceNotFoundException("Availability rule not found: " + availabilityId));
-    // Spec rule 9: "Doctor can modify only their own availability."
-    if (!availability.getDoctor().getId().equals(doctorId)) {
-        throw new ForbiddenActionException("You can only modify your own availability");
+    private DoctorAvailability findOwnedAvailability(
+            Integer doctorId,
+            Integer availabilityId) {
+
+        DoctorAvailability availability =
+                availabilityRepository
+                        .findById(availabilityId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Availability rule not found: "
+                                                + availabilityId
+                                )
+                        );
+
+        if (!availability.getDoctor()
+                .getId()
+                .equals(doctorId)) {
+
+            throw new ForbiddenActionException(
+                    "You can only modify your own availability"
+            );
+        }
+
+        return availability;
     }
-    return availability;
-}
 }
