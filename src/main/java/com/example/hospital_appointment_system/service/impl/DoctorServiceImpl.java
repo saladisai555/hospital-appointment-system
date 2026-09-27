@@ -32,8 +32,17 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DoctorResponse> search(Integer departmentId, String specialization, Pageable pageable) {
-        return doctorRepository.search(departmentId, specialization, pageable)
+    public Page<DoctorResponse> search(
+            Integer departmentId,
+            String search,
+            Pageable pageable) {
+
+        return doctorRepository
+                .search(
+                        departmentId,
+                        search,
+                        pageable
+                )
                 .map(DoctorMapper::toResponse);
     }
 

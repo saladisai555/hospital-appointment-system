@@ -15,13 +15,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AppointmentConflictService {
 
-    private static final List<AppointmentStatus> INACTIVE_STATUSES =
+    private static final List<String> INACTIVE_STATUSES =
             List.of(
-                    AppointmentStatus.CANCELLED,
-                    AppointmentStatus.REJECTED
+                    AppointmentStatus.CANCELLED.name(),
+                    AppointmentStatus.REJECTED.name()
             );
 
     private final AppointmentRepository appointmentRepository;
+
     private final DoctorRepository doctorRepository;
 
     public void validateNoConflict(
@@ -31,13 +32,13 @@ public class AppointmentConflictService {
             LocalTime startTime,
             LocalTime endTime) {
 
-        // Keep pessimistic locking for concurrent bookings
+        // Lock doctor to protect concurrent bookings
         lockDoctor(doctorId);
 
-        // Check overlapping appointments directly in the database
-        boolean overlapExists =
+        // Check whether another active appointment overlaps this slot
+        long overlapCount =
                 appointmentRepository
-                        .existsByDoctorIdAndAppointmentDateAndStatusNotInAndStartTimeLessThanAndEndTimeGreaterThan(
+                        .countOverlappingAppointments(
                                 doctorId,
                                 appointmentDate,
                                 INACTIVE_STATUSES,
@@ -45,16 +46,17 @@ public class AppointmentConflictService {
                                 startTime
                         );
 
-        if (overlapExists) {
+        if (overlapCount > 0) {
             throw new ConflictException(
                     "This slot is already booked. Please choose another time."
             );
         }
 
-        // Check duplicate booking by the same patient
-        boolean duplicateBooking =
+        // Check whether the same patient already booked
+        // the same doctor at the same time
+        long duplicateBookingCount =
                 appointmentRepository
-                        .existsByPatientIdAndDoctorIdAndAppointmentDateAndStartTimeAndStatusNotIn(
+                        .countDuplicateBookings(
                                 patientId,
                                 doctorId,
                                 appointmentDate,
@@ -62,9 +64,9 @@ public class AppointmentConflictService {
                                 INACTIVE_STATUSES
                         );
 
-        if (duplicateBooking) {
+        if (duplicateBookingCount > 0) {
             throw new ConflictException(
-                    "You already have a booking with this doctor at this time"
+                    "You already have a booking with this doctor at this time."
             );
         }
     }
@@ -72,9 +74,13 @@ public class AppointmentConflictService {
     private void lockDoctor(Integer doctorId) {
 
         try {
+
             doctorRepository.findByIdForUpdate(doctorId);
-        } catch (jakarta.persistence.PessimisticLockException |
-                 jakarta.persistence.LockTimeoutException e) {
+
+        } catch (
+                jakarta.persistence.PessimisticLockException |
+                jakarta.persistence.LockTimeoutException e
+        ) {
 
             throw new ConflictException(
                     "This doctor is currently handling another booking. Please try again."

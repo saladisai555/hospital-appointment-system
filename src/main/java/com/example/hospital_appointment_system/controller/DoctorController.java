@@ -26,10 +26,10 @@ public class DoctorController {
 
     @GetMapping
     public Page<DoctorResponse> search(@RequestParam(required = false) Integer departmentId,
-                                       @RequestParam(required = false) String specialization,
+                                       @RequestParam(required = false) String search,
                                        @RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "10") int size) {
-        return doctorService.search(departmentId, specialization, PageRequest.of(page, size));
+        return doctorService.search(departmentId, search, PageRequest.of(page, size));
     }
 
     @GetMapping("/{id}")

@@ -18,16 +18,22 @@ public interface DoctorRepository extends JpaRepository<Doctor, Integer> {
     Optional<Doctor> findByUserId(Integer userId);
 
     boolean existsByLicenseNumber(String licenseNumber);
-
     @Query("""
-            SELECT d FROM Doctor d
-            WHERE d.active = true
-              AND (:departmentId IS NULL OR d.department.id = :departmentId)
-              AND (:specialization IS NULL OR LOWER(d.specialization) LIKE LOWER(CONCAT('%', :specialization, '%')))
-            """)
-    Page<Doctor> search(@Param("departmentId") Integer departmentId,
-                        @Param("specialization") String specialization,
-                        Pageable pageable);
+        SELECT d FROM Doctor d
+        JOIN d.user u
+        WHERE d.active = true
+          AND (:departmentId IS NULL OR d.department.id = :departmentId)
+          AND (
+                :search IS NULL
+                OR LOWER(u.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                OR LOWER(d.specialization) LIKE LOWER(CONCAT('%', :search, '%'))
+              )
+        """)
+    Page<Doctor> search(
+            @Param("departmentId") Integer departmentId,
+            @Param("search") String search,
+            Pageable pageable
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints({
